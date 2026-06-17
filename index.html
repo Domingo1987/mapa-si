@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>SI... ENTONCES: el mapa de decisiones</title>
+<style>
+  /* =====================================================================
+     TOKENS DE DISEÑO
+     Paleta nocturna (pensada para Ciclo Básico Nocturno) que imita un
+     "mapa de control de flujo": nodos en forma de rombo (el símbolo
+     clásico de "decisión" en los diagramas de flujo), conectados por
+     un camino que se va iluminando a medida que se resuelven las
+     condiciones. Las palabras clave SI / ENTONCES se muestran como en
+     un editor de código, con resaltado de sintaxis simple.
+  ===================================================================== */
+  :root{
+    --bg-deep:#0c1124;
+    --bg-deep-2:#141a33;
+    --bg-panel:#171f3c;
+    --bg-card:#1f2a4d;
+    --border-soft:#2c3760;
+    --text-primary:#eef1fb;
+    --text-secondary:#9aa3c9;
+    --accent-amber:#fbbf24;
+    --accent-amber-soft:#fde9b8;
+    --accent-green:#34d399;
+    --accent-cyan:#5eead4;
+    --accent-error:#f87171;
+    --accent-skip:#a78bfa;
+    --kw-if:#5eead4;
+    --kw-then:#c084fc;
+    --radius-lg:18px;
+    --radius-md:12px;
+    --font-sans:"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-mono:"Consolas","SFMono-Regular",ui-monospace,Menlo,monospace;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    padding:0;
+    min-height:100%;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(94,234,212,0.10), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(251,191,36,0.08), transparent 45%),
+      linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-deep-2) 100%);
+    color:var(--text-primary);
+    font-family:var(--font-sans);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  button{ font-family:inherit; cursor:pointer; }
+  button:focus-visible, .opcion:focus-visible, .nodo.activo:focus-visible{
+    outline:3px solid var(--accent-cyan);
+    outline-offset:2px;
+  }
+
+  /* ---------------------------------------------------------------------
+     BARRA SUPERIOR (estado del juego)
+  --------------------------------------------------------------------- */
+  .barra-superior{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:rgba(12,17,36,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border-soft);
+    padding:14px 18px 12px;
+  }
+  .barra-superior h1{
+    margin:0 0 2px;
+    font-size:clamp(1.05rem, 3.4vw, 1.4rem);
+    letter-spacing:0.02em;
+  }
+  .barra-superior h1 .resaltado{ color:var(--accent-cyan); }
+  .subtitulo{
+    margin:0 0 10px;
+    font-size:0.82rem;
+    color:var(--text-secondary);
+  }
+  .fila-estado{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 18px;
+    align-items:center;
+    font-size:0.85rem;
+    color:var(--text-secondary);
+  }
+  .fila-estado strong{ color:var(--text-primary); }
+  .barra-progreso-contenedor{
+    flex:1 1 160px;
+    height:8px;
+    background:var(--bg-card);
+    border-radius:20px;
+    overflow:hidden;
+    border:1px solid var(--border-soft);
+    min-width:120px;
+  }
+  .barra-progreso-relleno{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+    transition:width 0.6s ease;
+    border-radius:20px;
+  }
+
+  /* ---------------------------------------------------------------------
+     MAPA VERTICAL DE NIVELES
+  --------------------------------------------------------------------- */
+  .mapa-envoltorio{
+    max-width:520px;
+    margin:0 auto;
+    padding:28px 16px 60px;
+  }
+  .mapa-track{
+    display:flex;
+    flex-direction:column-reverse; /* nivel 1 abajo, último arriba */
+    align-items:center;
+    gap:0;
+  }
+  .nodo-bloque{
+    display:flex;
+    flex-direction:column-reverse;
+    align-items:center;
+    width:100%;
+  }
+  .conector{
+    width:6px;
+    height:46px;
+    background:var(--border-soft);
+    border-radius:6px;
+    position:relative;
+    overflow:hidden;
+  }
+  .conector .relleno{
+    position:absolute;
+    bottom:0; left:0; width:100%;
+    height:0%;
+    background:linear-gradient(180deg, var(--accent-green), var(--accent-cyan));
+    transition:height 0.7s ease;
+  }
+  .conector.lleno .relleno{ height:100%; }
+
+  .nodo{
+    width:104px;
+    height:104px;
+    margin:6px 0;
+    border:none;
+    background:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+  }
+  .nodo .rombo{
+    width:78px;
+    height:78px;
+    transform:rotate(45deg);
+    border-radius:10px;
+    background:var(--bg-card);
+    border:2px solid var(--border-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:transform 0.3s ease, border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+  }
+  .nodo .contenido-rombo{
+    transform:rotate(-45deg);
+    text-align:center;
+    line-height:1.05;
+  }
+  .nodo .numero{
+    display:block;
+    font-size:1.3rem;
+    font-weight:700;
+  }
+  .nodo .marca{
+    display:block;
+    font-size:1rem;
+    margin-top:2px;
+  }
+  .nodo .etiqueta{
+    position:absolute;
+    top:108%;
+    width:150px;
+    text-align:center;
+    font-size:0.74rem;
+    color:var(--text-secondary);
+  }
+
+  .nodo.bloqueado .rombo{ opacity:0.45; }
+  .nodo.bloqueado .numero{ color:var(--text-secondary); }
+  .nodo.bloqueado{ cursor:default; }
+
+  .nodo.completado-correcto .rombo{
+    border-color:var(--accent-green);
+    background:rgba(52,211,153,0.12);
+  }
+  .nodo.completado-correcto .numero{ color:var(--accent-green); }
+
+  .nodo.completado-salteado .rombo{
+    border-color:var(--accent-skip);
+    background:rgba(167,139,250,0.10);
+  }
+  .nodo.completado-salteado .numero{ color:var(--accent-skip); }
+
+  .nodo.actual{ cursor:pointer; }
+  .nodo.actual .rombo{
+    border-color:var(--accent-amber);
+    background:rgba(251,191,36,0.14);
+    box-shadow:0 0 0 0 rgba(251,191,36,0.5);
+    animation:pulso-actual 1.8s ease-in-out infinite;
+  }
+  .nodo.actual .numero{ color:var(--accent-amber); }
+  @keyframes pulso-actual{
+    0%{ box-shadow:0 0 0 0 rgba(251,191,36,0.45); }
+    70%{ box-shadow:0 0 0 14px rgba(251,191,36,0); }
+    100%{ box-shadow:0 0 0 0 rgba(251,191,36,0); }
+  }
+  .nodo.actual:hover .rombo{ transform:rotate(45deg) scale(1.05); }
+
+  .nodo.recien-superado .rombo{
+    animation:salto-exito 0.55s ease;
+  }
+  @keyframes salto-exito{
+    0%{ transform:rotate(45deg) scale(1); }
+    40%{ transform:rotate(45deg) scale(1.25); }
+    100%{ transform:rotate(45deg) scale(1); }
+  }
+
+  /* ---------------------------------------------------------------------
+     PANEL DEL NIVEL (modal)
+  --------------------------------------------------------------------- */
+  .panel-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,8,20,0.72);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:24px 14px 14px;
+    overflow-y:auto;
+    z-index:40;
+  }
+  .panel-overlay.visible{ display:flex; }
+
+  .panel-nivel{
+    background:var(--bg-panel);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius-lg);
+    max-width:560px;
+    width:100%;
+    padding:22px 22px 26px;
+    animation:aparecer-panel 0.28s ease;
+    box-shadow:0 18px 50px rgba(0,0,0,0.45);
+  }
+  @keyframes aparecer-panel{
+    from{ opacity:0; transform:translateY(14px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .panel-cabecera{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:4px;
+  }
+  .panel-cabecera h2{
+    margin:0;
+    font-size:1.15rem;
+  }
+  .panel-cabecera .num-nivel{
+    font-size:0.78rem;
+    color:var(--text-secondary);
+    white-space:nowrap;
+  }
+  .situacion{
+    color:var(--text-secondary);
+    font-size:0.92rem;
+    margin:6px 0 16px;
+  }
+
+  /* Bloque de código (estilo editor) donde se completan SI / ENTONCES */
+  .bloque-codigo{
+    background:#0d1226;
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    font-family:var(--font-mono);
+    font-size:0.92rem;
+    margin-bottom:18px;
+  }
+  .bloque-codigo.tiembla{ animation:tiembla 0.4s ease; }
+  @keyframes tiembla{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-6px); }
+    75%{ transform:translateX(6px); }
+  }
+  .linea-codigo{ margin:4px 0; line-height:1.5; }
+  .kw{ font-weight:700; }
+  .kw-if{ color:var(--kw-if); }
+  .kw-then{ color:var(--kw-then); }
+  .blanco{
+    color:var(--accent-amber-soft);
+    border-bottom:1px dashed var(--text-secondary);
+    padding:0 2px;
+  }
+  .blanco.vacio{ color:var(--text-secondary); }
+
+  .grupo-opciones{ margin-bottom:16px; }
+  .grupo-opciones h3{
+    font-size:0.78rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--text-secondary);
+    margin:0 0 8px;
+  }
+  .lista-opciones{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .opcion{
+    text-align:left;
+    background:var(--bg-card);
+    border:1.5px solid var(--border-soft);
+    color:var(--text-primary);
+    border-radius:var(--radius-md);
+    padding:10px 14px;
+    font-size:0.9rem;
+    transition:border-color 0.2s ease, background 0.2s ease;
+  }
+  .opcion:hover{ border-color:var(--accent-cyan); }
+  .opcion.seleccionada{
+    border-color:var(--accent-amber);
+    background:rgba(251,191,36,0.10);
+  }
+  .opcion.marcar-error{
+    border-color:var(--accent-error);
+    background:rgba(248,113,113,0.12);
+  }
+
+  .panel-acciones{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    margin-top:6px;
+  }
+  .boton-principal{
+    background:var(--accent-cyan);
+    color:#06251f;
+    border:none;
+    font-weight:700;
+    padding:10px 20px;
+    border-radius:30px;
+    font-size:0.9rem;
+  }
+  .boton-principal:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  .boton-secundario{
+    background:transparent;
+    border:1.5px solid var(--border-soft);
+    color:var(--text-secondary);
+    padding:9px 16px;
+    border-radius:30px;
+    font-size:0.85rem;
+  }
+  .boton-secundario:hover{ border-color:var(--accent-skip); color:var(--text-primary); }
+
+  .mensaje-retro{
+    margin-top:14px;
+    padding:10px 14px;
+    border-radius:var(--radius-md);
+    font-size:0.88rem;
+    display:none;
+  }
+  .mensaje-retro.exito{
+    display:block;
+    background:rgba(52,211,153,0.14);
+    border:1px solid var(--accent-green);
+    color:var(--accent-green);
+  }
+  .mensaje-retro.error{
+    display:block;
+    background:rgba(248,113,113,0.12);
+    border:1px solid var(--accent-error);
+    color:#fecaca;
+  }
+
+  /* ---------------------------------------------------------------------
+     PANTALLA FINAL
+  --------------------------------------------------------------------- */
+  .pantalla-final{
+    background:var(--bg-panel);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius-lg);
+    max-width:560px;
+    width:100%;
+    padding:26px 24px 30px;
+    text-align:center;
+  }
+  .pantalla-final h2{
+    margin:0 0 6px;
+    font-size:1.4rem;
+  }
+  .estadistica-grande{
+    font-size:2.6rem;
+    font-weight:800;
+    color:var(--accent-amber);
+    margin:14px 0 2px;
+  }
+  .estadistica-detalle{
+    color:var(--text-secondary);
+    font-size:0.88rem;
+    margin-bottom:16px;
+  }
+  .mensaje-desempeno{
+    font-size:0.98rem;
+    margin:14px 0;
+    padding:12px 14px;
+    background:var(--bg-card);
+    border-radius:var(--radius-md);
+    border:1px solid var(--border-soft);
+  }
+  .mensaje-clave{
+    font-size:0.92rem;
+    color:var(--accent-cyan);
+    border-top:1px dashed var(--border-soft);
+    padding-top:14px;
+    margin-top:10px;
+  }
+  .seccion-pensar{
+    text-align:left;
+    margin-top:22px;
+  }
+  .seccion-pensar h3{
+    font-size:0.95rem;
+    margin-bottom:10px;
+  }
+  .pregunta-reflexion{ margin-bottom:14px; }
+  .pregunta-reflexion p{
+    font-size:0.86rem;
+    color:var(--text-secondary);
+    margin:0 0 6px;
+  }
+  .pregunta-reflexion textarea{
+    width:100%;
+    min-height:54px;
+    background:var(--bg-card);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius-md);
+    color:var(--text-primary);
+    font-family:inherit;
+    font-size:0.86rem;
+    padding:8px 10px;
+    resize:vertical;
+  }
+  .pantalla-final .boton-principal{ margin-top:16px; }
+
+  .oculto{ display:none !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  @media (max-width:420px){
+    .nodo{ width:90px; height:90px; }
+    .nodo .rombo{ width:66px; height:66px; }
+    .nodo .etiqueta{ width:120px; font-size:0.68rem; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- =================== BARRA SUPERIOR =================== -->
+  <header class="barra-superior">
+    <h1>SI... <span class="resaltado">ENTONCES</span>: el mapa de decisiones</h1>
+    <p class="subtitulo">Control de flujo: cómo un programa decide qué hacer</p>
+    <div class="fila-estado">
+      <span>Nivel <strong id="texto-nivel-actual">1</strong> de <strong id="texto-total-niveles">8</strong></span>
+      <span>Condiciones correctas: <strong id="texto-correctas">0</strong></span>
+      <div class="barra-progreso-contenedor" aria-label="Progreso del recorrido">
+        <div class="barra-progreso-relleno" id="barra-progreso"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- =================== MAPA DE NIVELES =================== -->
+  <main class="mapa-envoltorio">
+    <div class="mapa-track" id="mapa-track" aria-label="Mapa de niveles"></div>
+  </main>
+
+  <!-- =================== PANEL DE NIVEL (MODAL) =================== -->
+  <div class="panel-overlay" id="panel-overlay">
+    <section class="panel-nivel" id="panel-nivel" role="dialog" aria-modal="true" aria-labelledby="panel-titulo">
+      <div class="panel-cabecera">
+        <h2 id="panel-titulo"></h2>
+        <span class="num-nivel" id="panel-num-nivel"></span>
+      </div>
+      <p class="situacion" id="panel-situacion"></p>
+
+      <div class="bloque-codigo" id="bloque-codigo">
+        <div class="linea-codigo">
+          <span class="kw kw-if">SI</span>
+          <span class="blanco vacio" id="blanco-condicion">_______________</span>
+        </div>
+        <div class="linea-codigo">
+          <span class="kw kw-then">ENTONCES</span>
+          <span class="blanco vacio" id="blanco-accion">_______________</span>
+        </div>
+      </div>
+
+      <div class="grupo-opciones">
+        <h3>Elegí la condición</h3>
+        <div class="lista-opciones" id="lista-condiciones"></div>
+      </div>
+
+      <div class="grupo-opciones">
+        <h3>Elegí la acción</h3>
+        <div class="lista-opciones" id="lista-acciones"></div>
+      </div>
+
+      <div class="mensaje-retro" id="mensaje-retro"></div>
+
+      <div class="panel-acciones">
+        <button class="boton-principal" id="boton-comprobar" disabled>Comprobar</button>
+        <button class="boton-secundario oculto" id="boton-saltar">Continuar sin puntos</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- =================== PANTALLA FINAL (MODAL) =================== -->
+  <div class="panel-overlay" id="overlay-final">
+    <section class="pantalla-final">
+      <h2>Recorrido completado</h2>
+      <div class="estadistica-grande" id="final-numero">0/8</div>
+      <p class="estadistica-detalle" id="final-detalle">0% de condiciones resueltas correctamente</p>
+      <div class="mensaje-desempeno" id="final-mensaje"></div>
+      <p class="mensaje-clave">
+        Una condición permite que un programa tome decisiones. Según si algo es verdadero o falso,
+        el programa ejecuta una acción diferente.
+      </p>
+
+      <div class="seccion-pensar">
+        <h3>Para pensar</h3>
+        <div class="pregunta-reflexion">
+          <p>1. ¿Qué condición te resultó más fácil de identificar?</p>
+          <textarea aria-label="Respuesta pregunta 1"></textarea>
+        </div>
+        <div class="pregunta-reflexion">
+          <p>2. ¿Qué pasaba cuando elegías una acción que no correspondía?</p>
+          <textarea aria-label="Respuesta pregunta 2"></textarea>
+        </div>
+        <div class="pregunta-reflexion">
+          <p>3. ¿Qué ejemplos de decisiones automáticas aparecen en las aplicaciones que usamos todos los días?</p>
+          <textarea aria-label="Respuesta pregunta 3"></textarea>
+        </div>
+      </div>
+
+      <button class="boton-principal" id="boton-reiniciar">Jugar de nuevo</button>
+    </section>
+  </div>
+
+<script>
+/* =========================================================================
+   DATOS DEL JUEGO
+   Cada nivel tiene una situación, 3 opciones de condición (una correcta)
+   y 3 opciones de acción (una correcta). Los textos NO incluyen las
+   palabras "SI" / "ENTONCES": esas palabras clave ya están fijas en el
+   bloque de código y se completan con el texto elegido.
+========================================================================= */
+const NIVELES = [
+  {
+    titulo: "Contraseña correcta",
+    situacion: "Una persona quiere ingresar a su cuenta en una aplicación.",
+    condiciones: [
+      { texto: "la contraseña escrita es igual a la contraseña guardada", correcta: true },
+      { texto: "el usuario tiene buena memoria", correcta: false },
+      { texto: "la aplicación está actualizada", correcta: false }
+    ],
+    acciones: [
+      { texto: "permitir el ingreso", correcta: true },
+      { texto: "borrar la cuenta", correcta: false },
+      { texto: "cambiar el nombre de usuario", correcta: false }
+    ],
+    pista: "Pensá qué dato se compara para saber si la contraseña escrita es la correcta."
+  },
+  {
+    titulo: "Batería baja",
+    situacion: "Un celular revisa el porcentaje de batería que le queda.",
+    condiciones: [
+      { texto: "la batería es menor que 20%", correcta: true },
+      { texto: "el usuario tiene muchos contactos", correcta: false },
+      { texto: "la pantalla está limpia", correcta: false }
+    ],
+    acciones: [
+      { texto: "mostrar aviso de batería baja", correcta: true },
+      { texto: "abrir la cámara", correcta: false },
+      { texto: "borrar las aplicaciones", correcta: false }
+    ],
+    pista: "Buscá la opción relacionada con el nivel de carga, no con otras funciones del celular."
+  },
+  {
+    titulo: "Edad mínima",
+    situacion: "Una aplicación permite registrarse solo a partir de cierta edad.",
+    condiciones: [
+      { texto: "la edad es mayor o igual a 13", correcta: true },
+      { texto: "el nombre tiene más de 13 letras", correcta: false },
+      { texto: "el usuario vive en una ciudad grande", correcta: false }
+    ],
+    acciones: [
+      { texto: "permitir continuar con el registro", correcta: true },
+      { texto: "cerrar la aplicación", correcta: false },
+      { texto: "cambiar el idioma", correcta: false }
+    ],
+    pista: "La condición debe comparar la edad de la persona con un número mínimo."
+  },
+  {
+    titulo: "Temperatura alta",
+    situacion: "Una computadora controla constantemente su temperatura interna.",
+    condiciones: [
+      { texto: "la temperatura es mayor que 80 grados", correcta: true },
+      { texto: "la computadora está encendida hace poco tiempo", correcta: false },
+      { texto: "el ventilador hace ruido", correcta: false }
+    ],
+    acciones: [
+      { texto: "mostrar alerta y encender el ventilador", correcta: true },
+      { texto: "apagar la pantalla", correcta: false },
+      { texto: "borrar archivos antiguos", correcta: false }
+    ],
+    pista: "Fijate qué valor numérico se está midiendo y comparando."
+  },
+  {
+    titulo: "Archivo sin nombre",
+    situacion: "Un programa intenta guardar un archivo que el usuario está editando.",
+    condiciones: [
+      { texto: "el nombre del archivo está vacío", correcta: true },
+      { texto: "el archivo es muy grande", correcta: false },
+      { texto: "la computadora tiene poca memoria", correcta: false }
+    ],
+    acciones: [
+      { texto: "pedir que se escriba un nombre antes de guardar", correcta: true },
+      { texto: "borrar el archivo automáticamente", correcta: false },
+      { texto: "cerrar el programa", correcta: false }
+    ],
+    pista: "Pensá qué dato falta antes de poder guardar correctamente."
+  },
+  {
+    titulo: "Conexión a internet",
+    situacion: "Una aplicación necesita cargar una página web.",
+    condiciones: [
+      { texto: "hay conexión a internet", correcta: true },
+      { texto: "la batería está cargada al 100%", correcta: false },
+      { texto: "el usuario tiene una cuenta creada", correcta: false }
+    ],
+    acciones: [
+      { texto: "cargar la página", correcta: true },
+      { texto: "apagar el wifi", correcta: false },
+      { texto: "mostrar un video", correcta: false }
+    ],
+    pista: "La condición depende de si el dispositivo está conectado o no a la red."
+  },
+  {
+    titulo: "Nota suficiente",
+    situacion: "Un sistema revisa la calificación final de un estudiante.",
+    condiciones: [
+      { texto: "la nota es mayor o igual a 6", correcta: true },
+      { texto: "el estudiante asistió a todas las clases", correcta: false },
+      { texto: "el examen fue fácil", correcta: false }
+    ],
+    acciones: [
+      { texto: "mostrar \"aprobado\"", correcta: true },
+      { texto: "borrar la nota", correcta: false },
+      { texto: "repetir el año automáticamente", correcta: false }
+    ],
+    pista: "Compará el número de la nota con el mínimo necesario para aprobar."
+  },
+  {
+    titulo: "Sensor de luz",
+    situacion: "Un sistema automático controla el encendido de una luz.",
+    condiciones: [
+      { texto: "hay poca luz", correcta: true },
+      { texto: "alguien hace ruido", correcta: false },
+      { texto: "es fin de semana", correcta: false }
+    ],
+    acciones: [
+      { texto: "encender la lámpara", correcta: true },
+      { texto: "cerrar las ventanas", correcta: false },
+      { texto: "apagar el televisor", correcta: false }
+    ],
+    pista: "El sensor detecta una condición ambiental relacionada con la cantidad de luz."
+  }
+];
+
+/* =========================================================================
+   ESTADO DEL JUEGO
+========================================================================= */
+let estado = {
+  nivelActual: 0,           // índice del nivel en el que está parado el jugador
+  correctas: 0,             // condiciones resueltas correctamente (cuentan para el puntaje)
+  estadoNiveles: [],        // "bloqueado" | "actual" | "correcto" | "salteado"
+  intentos: 0,              // intentos fallidos en el nivel abierto actualmente
+  seleccionCondicion: null, // referencia al objeto de condición elegido
+  seleccionAccion: null     // referencia al objeto de acción elegido
+};
+
+/* Mezcla un arreglo sin modificar el original (Fisher-Yates) */
+function mezclar(arreglo){
+  const copia = arreglo.slice();
+  for(let i = copia.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+function inicializarJuego(){
+  estado.nivelActual = 0;
+  estado.correctas = 0;
+  estado.estadoNiveles = NIVELES.map((_, i) => i === 0 ? "actual" : "bloqueado");
+  document.getElementById("overlay-final").classList.remove("visible");
+  cerrarPanel();
+  dibujarMapa();
+  actualizarBarraSuperior();
+}
+
+/* =========================================================================
+   DIBUJO DEL MAPA
+========================================================================= */
+function dibujarMapa(){
+  const track = document.getElementById("mapa-track");
+  track.innerHTML = "";
+
+  NIVELES.forEach((nivel, indice) => {
+    const bloque = document.createElement("div");
+    bloque.className = "nodo-bloque";
+
+    // Conector hacia el nivel siguiente (no existe debajo del nivel 1)
+    if(indice > 0){
+      const conector = document.createElement("div");
+      conector.className = "conector";
+      if(estado.estadoNiveles[indice] !== "bloqueado"){
+        conector.classList.add("lleno");
+      }
+      conector.innerHTML = '<div class="relleno"></div>';
+      bloque.appendChild(conector);
+    }
+
+    const nodo = document.createElement("button");
+    nodo.type = "button";
+    const condicionEstado = estado.estadoNiveles[indice];
+    nodo.className = "nodo " + (
+      condicionEstado === "bloqueado" ? "bloqueado" :
+      condicionEstado === "actual" ? "actual" :
+      condicionEstado === "correcto" ? "completado-correcto" :
+      "completado-salteado"
+    );
+    nodo.setAttribute("aria-label", `Nivel ${indice + 1}: ${nivel.titulo}`);
+    if(condicionEstado === "bloqueado"){ nodo.disabled = true; }
+
+    let marca = "";
+    if(condicionEstado === "correcto") marca = "✓";
+    else if(condicionEstado === "salteado") marca = "~";
+
+    nodo.innerHTML = `
+      <span class="rombo">
+        <span class="contenido-rombo">
+          <span class="numero">${indice + 1}</span>
+          ${marca ? `<span class="marca">${marca}</span>` : ""}
+        </span>
+      </span>
+      <span class="etiqueta">${nivel.titulo}</span>
+    `;
+
+    if(condicionEstado === "actual"){
+      nodo.addEventListener("click", () => abrirPanel(indice));
+    }
+
+    bloque.appendChild(nodo);
+    track.appendChild(bloque);
+  });
+
+  // Centra el nodo actual en la pantalla para que el estudiante lo vea
+  const nodoActual = track.querySelector(".nodo.actual");
+  if(nodoActual){
+    nodoActual.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function actualizarBarraSuperior(){
+  document.getElementById("texto-nivel-actual").textContent = Math.min(estado.nivelActual + 1, NIVELES.length);
+  document.getElementById("texto-total-niveles").textContent = NIVELES.length;
+  document.getElementById("texto-correctas").textContent = estado.correctas;
+  const nivelesCompletados = estado.estadoNiveles.filter(e => e === "correcto" || e === "salteado").length;
+  const porcentaje = Math.round((nivelesCompletados / NIVELES.length) * 100);
+  document.getElementById("barra-progreso").style.width = porcentaje + "%";
+}
+
+/* =========================================================================
+   PANEL DE NIVEL
+========================================================================= */
+let condicionesMostradas = [];
+let accionesMostradas = [];
+
+function abrirPanel(indice){
+  estado.nivelActual = indice;
+  estado.intentos = 0;
+  estado.seleccionCondicion = null;
+  estado.seleccionAccion = null;
+
+  const nivel = NIVELES[indice];
+  document.getElementById("panel-titulo").textContent = nivel.titulo;
+  document.getElementById("panel-num-nivel").textContent = `Nivel ${indice + 1} de ${NIVELES.length}`;
+  document.getElementById("panel-situacion").textContent = nivel.situacion;
+
+  // Reiniciar bloque de código
+  const blancoCondicion = document.getElementById("blanco-condicion");
+  const blancoAccion = document.getElementById("blanco-accion");
+  blancoCondicion.textContent = "_______________";
+  blancoCondicion.classList.add("vacio");
+  blancoAccion.textContent = "_______________";
+  blancoAccion.classList.add("vacio");
+
+  // Mezclar y dibujar opciones
+  condicionesMostradas = mezclar(nivel.condiciones);
+  accionesMostradas = mezclar(nivel.acciones);
+  dibujarOpciones("lista-condiciones", condicionesMostradas, "condicion");
+  dibujarOpciones("lista-acciones", accionesMostradas, "accion");
+
+  // Reiniciar mensajes y botones
+  const mensaje = document.getElementById("mensaje-retro");
+  mensaje.className = "mensaje-retro";
+  mensaje.textContent = "";
+  document.getElementById("boton-comprobar").disabled = true;
+  document.getElementById("boton-saltar").classList.add("oculto");
+
+  document.getElementById("panel-overlay").classList.add("visible");
+}
+
+function dibujarOpciones(idContenedor, opciones, tipo){
+  const contenedor = document.getElementById(idContenedor);
+  contenedor.innerHTML = "";
+  opciones.forEach((opcion) => {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "opcion";
+    boton.textContent = (tipo === "condicion" ? "SI " : "ENTONCES ") + opcion.texto;
+    boton.addEventListener("click", () => elegirOpcion(tipo, opcion, boton));
+    contenedor.appendChild(boton);
+  });
+}
+
+function elegirOpcion(tipo, opcion, botonElegido){
+  const idLista = tipo === "condicion" ? "lista-condiciones" : "lista-acciones";
+  document.querySelectorAll(`#${idLista} .opcion`).forEach(b => {
+    b.classList.remove("seleccionada", "marcar-error");
+  });
+  botonElegido.classList.add("seleccionada");
+
+  if(tipo === "condicion"){
+    estado.seleccionCondicion = opcion;
+    const blanco = document.getElementById("blanco-condicion");
+    blanco.textContent = opcion.texto;
+    blanco.classList.remove("vacio");
+  } else {
+    estado.seleccionAccion = opcion;
+    const blanco = document.getElementById("blanco-accion");
+    blanco.textContent = opcion.texto;
+    blanco.classList.remove("vacio");
+  }
+
+  document.getElementById("boton-comprobar").disabled =
+    !(estado.seleccionCondicion && estado.seleccionAccion);
+}
+
+function comprobarRespuesta(){
+  if(!estado.seleccionCondicion || !estado.seleccionAccion) return;
+
+  const condicionOk = estado.seleccionCondicion.correcta;
+  const accionOk = estado.seleccionAccion.correcta;
+  const mensaje = document.getElementById("mensaje-retro");
+
+  if(condicionOk && accionOk){
+    mensaje.className = "mensaje-retro exito";
+    mensaje.textContent = "¡Correcto! Esa condición y esa acción resuelven bien la situación.";
+    estado.correctas += 1;
+    estado.estadoNiveles[estado.nivelActual] = "correcto";
+    actualizarBarraSuperior();
+    setTimeout(avanzarDespuesDeAcierto, 900);
+  } else {
+    estado.intentos += 1;
+    mensaje.className = "mensaje-retro error";
+    mensaje.textContent = NIVELES[estado.nivelActual].pista;
+
+    const bloqueCodigo = document.getElementById("bloque-codigo");
+    bloqueCodigo.classList.remove("tiembla");
+    // Forzar reinicio de animación
+    void bloqueCodigo.offsetWidth;
+    bloqueCodigo.classList.add("tiembla");
+
+    if(!condicionOk){
+      document.querySelectorAll("#lista-condiciones .opcion.seleccionada").forEach(b => b.classList.add("marcar-error"));
+    }
+    if(!accionOk){
+      document.querySelectorAll("#lista-acciones .opcion.seleccionada").forEach(b => b.classList.add("marcar-error"));
+    }
+
+    if(estado.intentos >= 2){
+      document.getElementById("boton-saltar").classList.remove("oculto");
+    }
+  }
+}
+
+function saltarNivel(){
+  estado.estadoNiveles[estado.nivelActual] = "salteado";
+  actualizarBarraSuperior();
+  avanzarDespuesDeAcierto();
+}
+
+function avanzarDespuesDeAcierto(){
+  cerrarPanel();
+
+  const siguiente = estado.nivelActual + 1;
+  if(siguiente < NIVELES.length){
+    estado.estadoNiveles[siguiente] = "actual";
+    estado.nivelActual = siguiente;
+  }
+
+  dibujarMapa();
+  actualizarBarraSuperior();
+
+  // Pequeña animación de "salto" sobre el nodo recién completado
+  const nodos = document.querySelectorAll(".nodo");
+  if(nodos[siguiente - 1]){
+    nodos[siguiente - 1].classList.add("recien-superado");
+  }
+
+  const todosCompletos = estado.estadoNiveles.every(e => e === "correcto" || e === "salteado");
+  if(todosCompletos){
+    setTimeout(mostrarPantallaFinal, 500);
+  }
+}
+
+function cerrarPanel(){
+  document.getElementById("panel-overlay").classList.remove("visible");
+}
+
+/* =========================================================================
+   PANTALLA FINAL
+========================================================================= */
+function mostrarPantallaFinal(){
+  const total = NIVELES.length;
+  const porcentaje = Math.round((estado.correctas / total) * 100);
+
+  document.getElementById("final-numero").textContent = `${estado.correctas}/${total}`;
+  document.getElementById("final-detalle").textContent =
+    `${porcentaje}% de condiciones resueltas correctamente`;
+
+  let mensaje = "";
+  if(estado.correctas === total){
+    mensaje = "Excelente. Lograste recorrer todo el mapa tomando decisiones correctas.";
+  } else if(estado.correctas >= 5){
+    mensaje = "Buen trabajo. Comprendiste varias condiciones y podés seguir practicando.";
+  } else {
+    mensaje = "Seguí intentando. Recordá que una condición pregunta si algo es verdadero o falso.";
+  }
+  document.getElementById("final-mensaje").textContent = mensaje;
+
+  document.getElementById("overlay-final").classList.add("visible");
+}
+
+/* =========================================================================
+   EVENTOS GLOBALES
+========================================================================= */
+document.getElementById("boton-comprobar").addEventListener("click", comprobarRespuesta);
+document.getElementById("boton-saltar").addEventListener("click", saltarNivel);
+document.getElementById("boton-reiniciar").addEventListener("click", inicializarJuego);
+
+// Cerrar el panel de nivel si se hace clic fuera de la tarjeta (no en la pantalla final)
+document.getElementById("panel-overlay").addEventListener("click", (evento) => {
+  if(evento.target.id === "panel-overlay"){
+    cerrarPanel();
+  }
+});
+
+/* Iniciar el juego al cargar la página */
+inicializarJuego();
+</script>
+</body>
+</html>
