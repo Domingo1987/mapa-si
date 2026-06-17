@@ -581,120 +581,150 @@ const NIVELES = [
     situacion: "Una persona quiere ingresar a su cuenta en una aplicación.",
     condiciones: [
       { texto: "la contraseña escrita es igual a la contraseña guardada", correcta: true },
-      { texto: "el usuario tiene buena memoria", correcta: false },
-      { texto: "la aplicación está actualizada", correcta: false }
+      { texto: "el usuario escribió algo en el cuadro de contraseña", correcta: false },
+      { texto: "el nombre de usuario tiene letras y números", correcta: false }
     ],
     acciones: [
       { texto: "permitir el ingreso", correcta: true },
-      { texto: "borrar la cuenta", correcta: false },
-      { texto: "cambiar el nombre de usuario", correcta: false }
+      { texto: "crear una cuenta nueva", correcta: false },
+      { texto: "cambiar automáticamente la contraseña", correcta: false }
     ],
-    pista: "Pensá qué dato se compara para saber si la contraseña escrita es la correcta."
+    pista: "No alcanza con escribir algo: el programa debe comparar si coincide con la contraseña guardada."
   },
   {
-    titulo: "Batería baja",
-    situacion: "Un celular revisa el porcentaje de batería que le queda.",
+    titulo: "Intentos de acceso",
+    situacion: "Una aplicación permite intentar ingresar varias veces, pero bloquea la cuenta si hay demasiados errores.",
     condiciones: [
-      { texto: "la batería es menor que 20%", correcta: true },
-      { texto: "el usuario tiene muchos contactos", correcta: false },
-      { texto: "la pantalla está limpia", correcta: false }
+      { texto: "la cantidad de intentos fallidos es mayor o igual a 3", correcta: true },
+      { texto: "la contraseña escrita es corta", correcta: false },
+      { texto: "el usuario presionó el botón ingresar", correcta: false }
     ],
     acciones: [
-      { texto: "mostrar aviso de batería baja", correcta: true },
-      { texto: "abrir la cámara", correcta: false },
-      { texto: "borrar las aplicaciones", correcta: false }
+      { texto: "bloquear temporalmente la cuenta", correcta: true },
+      { texto: "permitir el ingreso sin contraseña", correcta: false },
+      { texto: "borrar todos los datos del usuario", correcta: false }
     ],
-    pista: "Buscá la opción relacionada con el nivel de carga, no con otras funciones del celular."
+    pista: "Pensá qué debe controlar el sistema para decidir si bloquea o no la cuenta."
+  },
+  {
+    titulo: "Batería y ahorro",
+    situacion: "Un celular decide si activa el modo ahorro de energía.",
+    condiciones: [
+      { texto: "la batería es menor que 20% y el cargador no está conectado", correcta: true },
+      { texto: "la batería es menor que 20% o la pantalla está encendida", correcta: false },
+      { texto: "el celular tiene muchas aplicaciones instaladas", correcta: false }
+    ],
+    acciones: [
+      { texto: "activar el modo ahorro de energía", correcta: true },
+      { texto: "subir el brillo al máximo", correcta: false },
+      { texto: "reiniciar el celular", correcta: false }
+    ],
+    pista: "La mejor decisión combina dos datos: batería baja y que no esté cargando."
   },
   {
     titulo: "Edad mínima",
-    situacion: "Una aplicación permite registrarse solo a partir de cierta edad.",
+    situacion: "Una aplicación permite registrarse solo si la persona cumple la edad mínima requerida.",
     condiciones: [
       { texto: "la edad es mayor o igual a 13", correcta: true },
-      { texto: "el nombre tiene más de 13 letras", correcta: false },
-      { texto: "el usuario vive en una ciudad grande", correcta: false }
+      { texto: "la edad es menor que 13", correcta: false },
+      { texto: "el nombre tiene más de 13 letras", correcta: false }
     ],
     acciones: [
       { texto: "permitir continuar con el registro", correcta: true },
-      { texto: "cerrar la aplicación", correcta: false },
-      { texto: "cambiar el idioma", correcta: false }
+      { texto: "mostrar siempre acceso denegado", correcta: false },
+      { texto: "cambiar la edad ingresada", correcta: false }
     ],
-    pista: "La condición debe comparar la edad de la persona con un número mínimo."
+    pista: "La condición debe indicar cuándo sí puede continuar, no cuándo debe ser rechazado."
   },
   {
-    titulo: "Temperatura alta",
-    situacion: "Una computadora controla constantemente su temperatura interna.",
+    titulo: "Temperatura crítica",
+    situacion: "Una computadora controla su temperatura. Si sube demasiado, debe proteger el equipo.",
     condiciones: [
       { texto: "la temperatura es mayor que 80 grados", correcta: true },
-      { texto: "la computadora está encendida hace poco tiempo", correcta: false },
-      { texto: "el ventilador hace ruido", correcta: false }
+      { texto: "la temperatura es menor que 80 grados", correcta: false },
+      { texto: "el ventilador está funcionando", correcta: false }
     ],
     acciones: [
-      { texto: "mostrar alerta y encender el ventilador", correcta: true },
-      { texto: "apagar la pantalla", correcta: false },
-      { texto: "borrar archivos antiguos", correcta: false }
+      { texto: "mostrar alerta y aumentar la ventilación", correcta: true },
+      { texto: "cerrar todos los documentos sin guardar", correcta: false },
+      { texto: "apagar el monitor solamente", correcta: false }
     ],
-    pista: "Fijate qué valor numérico se está midiendo y comparando."
+    pista: "La condición importante es si la temperatura supera un límite peligroso."
   },
   {
-    titulo: "Archivo sin nombre",
-    situacion: "Un programa intenta guardar un archivo que el usuario está editando.",
+    titulo: "Guardar archivo",
+    situacion: "Un programa debe decidir si puede guardar un archivo creado por el usuario.",
     condiciones: [
-      { texto: "el nombre del archivo está vacío", correcta: true },
-      { texto: "el archivo es muy grande", correcta: false },
-      { texto: "la computadora tiene poca memoria", correcta: false }
+      { texto: "el nombre del archivo no está vacío y la carpeta existe", correcta: true },
+      { texto: "el nombre del archivo está vacío", correcta: false },
+      { texto: "el archivo tiene muchas palabras", correcta: false }
     ],
     acciones: [
-      { texto: "pedir que se escriba un nombre antes de guardar", correcta: true },
-      { texto: "borrar el archivo automáticamente", correcta: false },
-      { texto: "cerrar el programa", correcta: false }
+      { texto: "guardar el archivo en la carpeta seleccionada", correcta: true },
+      { texto: "cerrar el programa sin guardar", correcta: false },
+      { texto: "cambiar el nombre del archivo por uno al azar", correcta: false }
     ],
-    pista: "Pensá qué dato falta antes de poder guardar correctamente."
+    pista: "Para guardar bien, no alcanza con tener contenido: se necesita nombre y ubicación válida."
   },
   {
-    titulo: "Conexión a internet",
-    situacion: "Una aplicación necesita cargar una página web.",
+    titulo: "Conexión inestable",
+    situacion: "Una aplicación intenta enviar un mensaje, pero la conexión puede fallar.",
     condiciones: [
-      { texto: "hay conexión a internet", correcta: true },
-      { texto: "la batería está cargada al 100%", correcta: false },
-      { texto: "el usuario tiene una cuenta creada", correcta: false }
+      { texto: "hay conexión a internet y el mensaje no está vacío", correcta: true },
+      { texto: "hay conexión a internet o el mensaje está vacío", correcta: false },
+      { texto: "el usuario abrió la aplicación", correcta: false }
     ],
     acciones: [
-      { texto: "cargar la página", correcta: true },
-      { texto: "apagar el wifi", correcta: false },
-      { texto: "mostrar un video", correcta: false }
+      { texto: "enviar el mensaje", correcta: true },
+      { texto: "enviar un mensaje vacío", correcta: false },
+      { texto: "borrar la conversación completa", correcta: false }
     ],
-    pista: "La condición depende de si el dispositivo está conectado o no a la red."
+    pista: "Para enviar, se necesitan dos cosas: conexión y un mensaje con contenido."
   },
   {
-    titulo: "Nota suficiente",
-    situacion: "Un sistema revisa la calificación final de un estudiante.",
+    titulo: "Resultado del curso",
+    situacion: "Un sistema revisa si un estudiante aprueba una actividad.",
     condiciones: [
-      { texto: "la nota es mayor o igual a 6", correcta: true },
-      { texto: "el estudiante asistió a todas las clases", correcta: false },
-      { texto: "el examen fue fácil", correcta: false }
+      { texto: "la nota es mayor o igual a 6 y la entrega fue realizada", correcta: true },
+      { texto: "la nota es mayor o igual a 6 o la entrega no fue realizada", correcta: false },
+      { texto: "el estudiante abrió la plataforma", correcta: false }
     ],
     acciones: [
       { texto: "mostrar \"aprobado\"", correcta: true },
-      { texto: "borrar la nota", correcta: false },
-      { texto: "repetir el año automáticamente", correcta: false }
+      { texto: "aprobar aunque no haya entrega", correcta: false },
+      { texto: "borrar la calificación", correcta: false }
     ],
-    pista: "Compará el número de la nota con el mínimo necesario para aprobar."
+    pista: "La aprobación depende de cumplir la nota mínima y haber realizado la entrega."
   },
   {
     titulo: "Sensor de luz",
-    situacion: "Un sistema automático controla el encendido de una luz.",
+    situacion: "Un sistema automático controla una lámpara en una habitación.",
     condiciones: [
-      { texto: "hay poca luz", correcta: true },
-      { texto: "alguien hace ruido", correcta: false },
-      { texto: "es fin de semana", correcta: false }
+      { texto: "hay poca luz y hay una persona en la habitación", correcta: true },
+      { texto: "hay poca luz o la lámpara ya está encendida", correcta: false },
+      { texto: "es de noche en cualquier lugar del mundo", correcta: false }
     ],
     acciones: [
       { texto: "encender la lámpara", correcta: true },
-      { texto: "cerrar las ventanas", correcta: false },
-      { texto: "apagar el televisor", correcta: false }
+      { texto: "encender todos los aparatos eléctricos", correcta: false },
+      { texto: "apagar la lámpara", correcta: false }
     ],
-    pista: "El sensor detecta una condición ambiental relacionada con la cantidad de luz."
+    pista: "La decisión es más precisa si considera la luz y la presencia de una persona."
+  },
+  {
+    titulo: "Compra en línea",
+    situacion: "Una tienda virtual debe decidir si permite finalizar una compra.",
+    condiciones: [
+      { texto: "el carrito tiene productos y el pago fue aprobado", correcta: true },
+      { texto: "el usuario miró muchos productos", correcta: false },
+      { texto: "el carrito está vacío o el pago fue rechazado", correcta: false }
+    ],
+    acciones: [
+      { texto: "confirmar la compra", correcta: true },
+      { texto: "enviar productos sin pagar", correcta: false },
+      { texto: "vaciar el carrito automáticamente", correcta: false }
+    ],
+    pista: "Para confirmar una compra se necesita al menos un producto y que el pago sea válido."
   }
 ];
 
